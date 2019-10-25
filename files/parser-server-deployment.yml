@@ -1,0 +1,44 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: parser-server
+  annotations:
+      prometheus.io/scrape: 'true'
+      prometheus.io/port:   '9090'
+      prometheus.io/path: '/actuator/prometheus'
+spec:
+  replicas: 1 # number of running pods
+  template:
+    metadata:
+      labels:
+        name: parser-server
+        app: parser-server
+        tier: backend
+        role: application-server
+    spec:
+      volumes: 
+      - name: parser-server-config
+        configMap:
+          name: parser-server-config       
+      containers:
+      - image: docker.io/maniagarwal/parser-server:v1 # image name and tag from the container registry 
+        imagePullPolicy: Always 
+        name: parser-server
+        command: ["npm","start",--,]
+        args: ["/parse/app.yaml"]
+        envFrom:
+          - configMapRef:
+               name: parser-server-config                  
+        volumeMounts: 
+          - name: parser-server-config
+            mountPath: "/parse/config"
+            readOnly: true        
+        ports:
+        - containerPort: 1337       
+        readinessProbe:  # important for load balancer helath check 
+          httpGet:
+            path: /parse/health
+            port: 1337
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
